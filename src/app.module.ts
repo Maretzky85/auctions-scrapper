@@ -9,10 +9,11 @@ import { AllController } from './controllers/all/all.controller';
 import { PersistencePostgresService } from './services/persistence-postgres/persistence-postgres.service';
 import { JobsController } from './controllers/jobs/jobs.controller';
 import { CombineService } from './services/combine/combine.service';
+import { AllegroAuthService } from './services/allegro/allegro.auth/allegro.auth.service';
 
 @Module({
   imports: [HttpModule],
   controllers: [AppController, SearchAllegroController, SearchOlxController, AllController, JobsController],
-  providers: [AppService, AllegroService, OlxService, Logger, PersistencePostgresService, CombineService],
+  providers: [AppService, AllegroService, OlxService, Logger, PersistencePostgresService, CombineService, AllegroAuthService],
 })
 export class AppModule {}

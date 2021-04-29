@@ -1,70 +1,77 @@
-import { HttpService, Injectable, Logger, Query } from '@nestjs/common';
-import { Observable, of } from 'rxjs';
-import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { HttpService, Injectable, Logger } from '@nestjs/common';
+import { Observable, of, forkJoin } from 'rxjs';
+import { catchError, filter, map, switchMap } from 'rxjs/operators';
 import { Offer } from '../../models/offer';
+import {
+  AllegroAuctionsResponse,
+  AllegroCategoriesResponse, AllegroMatchingCategoriesResponse,
+  Category, Regular,
+} from './interfaces';
+import { AllegroAuthService } from './allegro.auth/allegro.auth.service';
 
 @Injectable()
 export class AllegroService {
 
-  constructor(private http: HttpService) {
+  constructor(private http: HttpService, private authService: AllegroAuthService) {
   }
 
-  private getCredential(): Observable<string> {
-    const params = {
-      // eslint-disable-next-line @typescript-eslint/camelcase
-      grant_type: "client_credentials"
-    }
-    const headers = {
-      Authorization: "Basic NDExMDI2NzM3OTc2NDAzYmFkNjFjZDYxYmVmN2NjMTc6N2pSMmNybnJtblBzQ05jU2ZSblg5cFVYSkZSMHpqR0hCNFVLRnhZbU1PaGpaYTZHTzVKb1ZlZm10Nlc5SENUQg=="
-    }
-    return this.http.post("https://allegro.pl/auth/oauth/token", {}, { headers, params })
-      .pipe(
-        map(value => {
-          return value.data.access_token;
-        }),
-        catchError((err, caught) => {
-          console.error(err)
-          // eslint-disable-next-line @typescript-eslint/camelcase
-          return of({access_token: ""})
-        })
-      )
+  getPredictedCategoryForSearch(search: string): Observable<Category[]> {
+    const params = { name: search };
+
+    return this.authService.getAuthHeaders().pipe(
+      switchMap(headers => this.http.get<AllegroMatchingCategoriesResponse>
+        ('https://api.allegro.pl/sale/matching-categories', { headers, params }).pipe(
+        map(response => response.data.matching_categories)),
+      ),
+    );
   }
 
-  search(category: number, phrase: string): Observable<Offer[]> {
+  getPredictedCategoryIdForSearch(search: string): Observable<string> {
+    return this.getPredictedCategoryForSearch(search).pipe(
+      map(category => category[0].id)
+    )
+  }
+
+  getCategoryList(): Observable<Category[]> {
+    return this.authService.getAuthHeaders().pipe(
+      switchMap(headers => this.http.get<AllegroCategoriesResponse>
+        ('https://api.allegro.pl/sale/categories', { headers }).pipe(
+        map(response => response.data.categories)),
+      ),
+    );
+  }
+
+  search(phrase: string, category: string = null): Observable<Offer[]> {
     Logger.log(`Allegro service searching for: ${phrase}`, AllegroService.name);
-    return this.getCredential().pipe(
-      switchMap(token => {
+    return forkJoin([this.getPredictedCategoryIdForSearch(phrase), this.authService.getAuthHeaders()]).pipe(
+      switchMap(([predictedCategory, headers]) => {
         const params = {
-          phrase: phrase,
-          "category.id": category,
-          "publication.status":"ACTIVE"
-        }
-        const headers = {
-          Accept: "application/vnd.allegro.public.v1+json",
-          Authorization: `Bearer ${token}`,
-        }
-        return this.http.get('https://api.allegro.pl/offers/listing', { headers, params })
+          phrase,
+          'category.id': category ? category : predictedCategory,
+          'publication.status': 'ACTIVE',
+        };
+        return this.http.get<AllegroAuctionsResponse>('https://api.allegro.pl/offers/listing', { headers, params })
           .pipe(
             map(value => [...value.data.items.regular, ...value.data.items.promoted]),
-            map(offerList => {
-              return offerList
-                .filter(offer => offer.sellingMode.format === "BUY_NOW")
-                .map(offer => {
-                  return {
-                    id: offer.id,
-                    title: offer.name,
-                    img: offer.images,
-                    url: offer.vendor?.url ? offer.vendor.url : `https://allegro.pl/oferta/${offer.id}`,
-                    price: offer.sellingMode.price.amount};
-                })
-            }),
+            filter(([offer]) => offer.sellingMode.format === 'BUY_NOW'),
+            map(offerList => this.allegroListingToOffer(offerList)),
             catchError(err => {
               Logger.error(err.response.data.errors[0], AllegroService.name);
-              return of([])
-            })
+              return of([]);
+            }),
           );
-      })
+      }),
     )
+  }
+
+  protected allegroListingToOffer(listing: Regular[]): Offer[] {
+    return listing.map(listingItem => ({
+      id: listingItem.id,
+      title: listingItem.name,
+      img: listingItem.images,
+      url: listingItem.vendor?.url ? listingItem.vendor.url : `https://allegro.pl/oferta/${listingItem.id}`,
+      price: listingItem.sellingMode.price.amount
+    }))
   }
 
 }

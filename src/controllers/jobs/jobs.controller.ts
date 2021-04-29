@@ -8,11 +8,13 @@ import { CombineService } from '../../services/combine/combine.service';
 import { flatMap } from 'rxjs/internal/operators';
 import Timeout = NodeJS.Timeout;
 import { Observable, of } from 'rxjs';
+import { ApiTags } from '@nestjs/swagger';
 
 interface Intervals {
   [id: number]: Timeout
 }
 
+@ApiTags('Jobs manager')
 @Controller('jobs')
 export class JobsController {
 
@@ -53,7 +55,7 @@ export class JobsController {
   setInactive(@Query('queryId') queryId: number): Observable<number> {
     if (this.intervals[queryId]) {
       return this.persistence.updateQuery(queryId, false).pipe(
-        flatMap(value => {
+        flatMap(() => {
           clearInterval(this.intervals[queryId]);
           delete this.intervals[queryId];
           Logger.log(`Query nr ${queryId} set as Inactive`);
@@ -69,7 +71,7 @@ export class JobsController {
   setActive(@Query('queryId') queryId: number): Observable<number> {
     if (!this.intervals[queryId] && this.activeJobs.filter(value => value.id == queryId).length === 1) {
       return this.persistence.updateQuery(queryId, true).pipe(
-        flatMap(value => {
+        flatMap(() => {
           const query = this.activeJobs.filter(value => value.id == queryId)[0];
           this.intervals[query.id] = this.registerJob(query.search, 1000 * 60 * 30, query.id)
           Logger.log(`Query nr ${queryId} set as Active`);

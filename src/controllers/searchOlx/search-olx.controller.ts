@@ -1,6 +1,8 @@
-import { Controller, Get, HttpService, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { OlxService } from '../../services/olx/olx.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Olx Scrapper')
 @Controller('olx')
 export class SearchOlxController {
 

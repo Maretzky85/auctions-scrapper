@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import puppeteer from 'puppeteer/lib/cjs/puppeteer/node-puppeteer-core';
-import { from, Observable } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { from, Observable, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { Offer } from '../../models/offer';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class OlxService {
     const searchUrl = `https://www.olx.pl/oferty/q-${search}/`
     return from(puppeteer.launch()).pipe(
       switchMap(browser => browser.newPage()),
-      switchMap(page => page.goto(searchUrl).then(_ => page)),
+      switchMap(page => page.goto(searchUrl).then(() => page)),
       switchMap(page => page.evaluate(() => {
         const offers = Array.from(document.querySelectorAll(".offer-wrapper"));
         return offers.map(offer => {
@@ -27,7 +27,11 @@ export class OlxService {
             location: offer.querySelectorAll('.breadcrumb')[1].innerText.trim()
           } as Offer;
         });
-      }))
+      })),
+      catchError(() => {
+        Logger.log('Olx search error');
+        return of([]);
+      })
     )
   }
 

@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CombineService } from './combine.service';
+import { AllegroAuthService } from './allegro.auth.service';
 
-describe('CombineService', () => {
-  let service: CombineService;
+describe('Allegro.AuthService', () => {
+  let service: AllegroAuthService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CombineService],
+      providers: [AllegroAuthService],
     }).compile();
 
-    service = module.get<CombineService>(CombineService);
+    service = module.get<AllegroAuthService>(AllegroAuthService);
   });
 
   it('should be defined', () => {

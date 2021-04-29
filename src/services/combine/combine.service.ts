@@ -3,7 +3,6 @@ import { forkJoin, from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { AllegroService } from '../allegro/allegro.service';
 import { OlxService } from '../olx/olx.service';
-import { PersistencePostgresService } from '../persistence-postgres/persistence-postgres.service';
 import { Result } from '../../models/result';
 import { Offer } from '../../models/offer';
 
@@ -11,12 +10,11 @@ import { Offer } from '../../models/offer';
 export class CombineService {
 
   constructor(private allegroService: AllegroService,
-              private olxService: OlxService,
-              private persistence: PersistencePostgresService) {
+              private olxService: OlxService) {
   }
 
   searchAll(search: string): Observable<Result> {
-    return forkJoin([this.allegroService.search(11, search), from(this.olxService.searchOlx(search))])
+    return forkJoin([this.allegroService.search(search), from(this.olxService.searchOlx(search))])
       .pipe(map(([allegro, olx]) => {
         const data = [...allegro, ...olx].map(offer => {
           offer.price = this.priseNormalizer(offer.price);

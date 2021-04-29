@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Client } from 'ts-postgres';
 import { from, Observable, of, throwError } from 'rxjs';
-import { catchError, map, switchMap, tap, toArray } from 'rxjs/operators';
+import { catchError, map, switchMap, toArray } from 'rxjs/operators';
 import { flatMap } from 'rxjs/internal/operators';
 import { Offer } from '../../models/offer';
+import { postgresConfig } from '../../consts';
 
 @Injectable()
 export class PersistencePostgresService {
@@ -12,19 +13,12 @@ export class PersistencePostgresService {
   private static connected = false;
   private static connecting = false;
   private static instance = 0;
-  private config = {
-    host: '192.168.100.254',
-    port: 5432,
-    database: 'scrapper',
-    user: 'scrapper',
-    password: '!Qwerty&'
-  }
   constructor() {
     ++PersistencePostgresService.instance;
-    PersistencePostgresService.postgres = new Client(this.config);
+    PersistencePostgresService.postgres = new Client(postgresConfig);
     if (!PersistencePostgresService.connecting && PersistencePostgresService.instance === 1) {
       PersistencePostgresService.connecting = true;
-      PersistencePostgresService.postgres.connect().then(value => PersistencePostgresService.connected = true);
+      PersistencePostgresService.postgres.connect().then(() => PersistencePostgresService.connected = true);
     }
   }
 
@@ -36,7 +30,7 @@ export class PersistencePostgresService {
     return of(this.getClient().query(
         "INSERT INTO activequery(search, active) VALUES ($1, true)", [searchValue]
       )).pipe(
-      switchMap(_ => this.getClient().query(
+      switchMap(() => this.getClient().query(
         "SELECT id FROM activequery WHERE search = $1", [searchValue]
       )),
       switchMap(result => {
@@ -85,7 +79,7 @@ export class PersistencePostgresService {
 
   getResultsForQuery(queryNr: number): Observable<any[]> {
     return of(PersistencePostgresService.postgres).pipe(
-      switchMap(_ => this.getClient().query(
+      switchMap(() => this.getClient().query(
         "SELECT * FROM results WHERE query = $1", [queryNr]
       )),
       map(result => result.rows )
@@ -94,15 +88,15 @@ export class PersistencePostgresService {
 
   getJobs(): Observable<ActiveQuery[]> {
     return of(PersistencePostgresService.postgres).pipe(
-      switchMap(_ => this.getClient().query(
+      switchMap(() => this.getClient().query(
         "SELECT * FROM activequery"
       )),
       map(result => result.rows ),
       map(rows => rows.map(row => {
         return {
           id: row[0],
-          active: row[1],
-          search: row[2]
+          search: row[1],
+          active: row[2]
         } as ActiveQuery
       }))
     )
