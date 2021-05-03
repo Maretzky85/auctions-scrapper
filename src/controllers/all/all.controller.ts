@@ -4,7 +4,6 @@ import { OlxService } from '../../services/olx/olx.service';
 import { map, switchMap } from 'rxjs/operators';
 import { PersistencePostgresService } from '../../services/persistence-postgres/persistence-postgres.service';
 import { flatMap } from 'rxjs/internal/operators';
-import { Offer } from '../../models/offer';
 import { CombineService } from '../../services/combine/combine.service';
 import { ApiTags } from '@nestjs/swagger';
 
@@ -18,49 +17,34 @@ export class AllController {
               private combine: CombineService) {
   }
 
-  @Get('ss')
-  searchAndSave(@Query('search') search: string) {
+  @Get('search/save')
+  searchAndSave(@Query('search') search: string, @Query('category') category: string = null) {
     if (!search) return new BadRequestException('Search query must be specified')
-    Logger.log(`Creating new query ${search}`)
     return this.persistence.insertQuery(search).pipe(
-      switchMap(queryNr => this.combine.searchAll(search).pipe(map(result => {
+      switchMap(queryNr => this.combine.searchAll(search, category).pipe(map(result => {
         result['queryNr'] = queryNr
         return result;
       }))),
-      flatMap(result => {
-        Logger.log(`Saving ${result.data.length} offers`, AllController.name);
-        // @ts-ignore
+      switchMap(result => {
+        Logger.debug(`Saving ${result.data.length} offers`, AllController.name);
+        // return this.persistence.insertResults(result.queryNr, result.data)
         return this.persistence.insertResults(result.queryNr, result.data)
       })
     )
   }
 
   @Get()
-  searchAll(@Query('search') search: string) {
+  searchAll(@Query('search') search: string, @Query('allegroCategory') allegroCategory: string) {
     if (!search) {
       Logger.debug(`searing... ${search}`);
       return new BadRequestException(`NullSearch`)
     }
-    return this.combine.searchAll(search);
+    return this.combine.searchAll(search, allegroCategory);
   }
 
   @Get('results')
   getResult(@Query('query') query: number) {
     if (!query) return new BadRequestException('Query must be specified')
-    return this.persistence.getResultsForQuery(query).pipe(
-      map(results =>
-      results.map(result => {
-        console.log(result);
-        return {
-          id: result[0],
-          img: JSON.parse(result[1]),
-          title: result[2],
-          url: result[3],
-          vendorId: result[6],
-          price: result[4],
-          location: result[5]
-        } as Offer
-      }))
-    );
+    return this.persistence.getResultsForQuery(query)
   }
 }

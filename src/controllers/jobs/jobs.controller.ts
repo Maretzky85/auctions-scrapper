@@ -20,6 +20,7 @@ export class JobsController {
 
   private activeJobs: ActiveQuery[];
   private intervals: Intervals = {};
+  private intervalTime: number = 1000 * 60 * 30;
 
   constructor(private combine: CombineService,
               private persistence: PersistencePostgresService) {
@@ -58,8 +59,8 @@ export class JobsController {
         flatMap(() => {
           clearInterval(this.intervals[queryId]);
           delete this.intervals[queryId];
-          Logger.log(`Query nr ${queryId} set as Inactive`);
-          Logger.log(`Active queries : ${Object.keys(this.intervals).length}`);
+          Logger.debug(`Query nr ${queryId} set as Inactive`);
+          Logger.debug(`Active queries : ${Object.keys(this.intervals).length}`);
           return of(queryId)
         })
       )
@@ -73,9 +74,9 @@ export class JobsController {
       return this.persistence.updateQuery(queryId, true).pipe(
         flatMap(() => {
           const query = this.activeJobs.filter(value => value.id == queryId)[0];
-          this.intervals[query.id] = this.registerJob(query.search, 1000 * 60 * 30, query.id)
-          Logger.log(`Query nr ${queryId} set as Active`);
-          Logger.log(`Active queries : ${Object.keys(this.intervals).length}`);
+          this.intervals[query.id] = this.registerJob(query.search, this.intervalTime, query.id)
+          Logger.debug(`Query nr ${queryId} set as Active`);
+          Logger.debug(`Active queries : ${Object.keys(this.intervals).length}`);
           return of(queryId);
         })
       )

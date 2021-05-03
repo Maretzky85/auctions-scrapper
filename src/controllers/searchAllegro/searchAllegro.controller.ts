@@ -11,37 +11,41 @@ export class SearchAllegroController {
   }
 
   @Get()
-  searchAllegro(@Query('category') category: string,  @Query('search') phrase: string) {
-    if (!phrase) {
-      return new BadRequestException('NullSearch')
-    }
-    return this.allegroService.search(phrase, category).pipe(tap(response => Logger.log(`Found ${response.length} results`)))
+  searchAllegro(
+    @Query('category') category: string,
+    @Query('search') phrase: string) {
+    if (!phrase) new BadRequestException('NullSearch');
+    if (!category) new BadRequestException('NullCategory');
+    return this.allegroService.search(phrase, category).pipe(tap(response => Logger.log(`Found ${response.length} results`)));
   }
 
-  @Get('categories')
+  @Get('category')
   getCategories() {
     return this.allegroService.getCategoryList()
       .pipe(
         catchError((err) => {
-          throw new InternalServerErrorException({ status: err.response.status, statusText: err.response.statusText }, err.message);
-        })
+          throw new InternalServerErrorException({
+            status: err.response.status,
+            statusText: err.response.statusText,
+          }, err.message);
+        }),
       );
   }
 
-  @Get('search-category')
+  @Get('category/search')
   getMatchingCategory(@Query('search') search: string) {
     if (!search) {
-      return new BadRequestException('NullSearch')
+      return new BadRequestException('NullSearch');
     }
-    return this.allegroService.getPredictedCategoryForSearch(search)
+    return this.allegroService.getPredictedCategoryForSearch(search);
   }
 
   @Get('search')
   searchForProducts(@Query('search') search: string) {
     if (!search) {
-      return new BadRequestException('NullSearch')
+      return new BadRequestException('NullSearch');
     }
-    return this.allegroService.search(search)
+    return this.allegroService.search(search);
   }
 
 }

@@ -1,6 +1,6 @@
-import { HttpService, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, HttpService, Injectable, Logger } from '@nestjs/common';
 import { Observable, of, forkJoin } from 'rxjs';
-import { catchError, filter, map, switchMap } from 'rxjs/operators';
+import { catchError, filter, map, switchMap, tap } from 'rxjs/operators';
 import { Offer } from '../../models/offer';
 import {
   AllegroAuctionsResponse,
@@ -8,9 +8,10 @@ import {
   Category, Regular,
 } from './interfaces';
 import { AllegroAuthService } from './allegro.auth/allegro.auth.service';
+import { ISearch } from '../ISearch';
 
 @Injectable()
-export class AllegroService {
+export class AllegroService implements ISearch{
 
   constructor(private http: HttpService, private authService: AllegroAuthService) {
   }
@@ -28,7 +29,7 @@ export class AllegroService {
 
   getPredictedCategoryIdForSearch(search: string): Observable<string> {
     return this.getPredictedCategoryForSearch(search).pipe(
-      map(category => category[0].id)
+      map(category => category[0]?.id)
     )
   }
 
@@ -53,11 +54,13 @@ export class AllegroService {
         return this.http.get<AllegroAuctionsResponse>('https://api.allegro.pl/offers/listing', { headers, params })
           .pipe(
             map(value => [...value.data.items.regular, ...value.data.items.promoted]),
-            filter(([offer]) => offer.sellingMode.format === 'BUY_NOW'),
+            tap(resultList => Logger.debug(`Allegro found ${resultList.length} items`, AllegroService.name)),
+            filter(([offer]) => offer?.sellingMode.format === 'BUY_NOW'),
             map(offerList => this.allegroListingToOffer(offerList)),
             catchError(err => {
               Logger.error(err.response.data.errors[0], AllegroService.name);
-              return of([]);
+              // return of([]);
+              throw new BadRequestException(err.response.data.errors[0].message)
             }),
           );
       }),

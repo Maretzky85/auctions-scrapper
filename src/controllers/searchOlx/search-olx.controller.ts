@@ -11,7 +11,7 @@ export class SearchOlxController {
 
   @Get()
   searchOlx(@Query('phrase') phrase: string) {
-    return this.olxService.searchOlx(phrase)
+    return this.olxService.search(phrase)
   }
 
 }
